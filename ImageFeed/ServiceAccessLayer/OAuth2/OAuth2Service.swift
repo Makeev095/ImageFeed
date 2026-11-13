@@ -1,5 +1,9 @@
 import Foundation
 
+enum AuthServiceError: Error {
+    case invalidRequest
+}
+
 struct OAuthTokenResponseBody: Decodable {
     let accessToken: String
     let tokenType: String
@@ -17,30 +21,61 @@ struct OAuthTokenResponseBody: Decodable {
 final class OAuth2Service {
     static let shared = OAuth2Service()
 
+    private let dataStorage = OAuth2TokenStorage.shared
     private let urlSession = URLSession.shared
+
+    private var task: URLSessionTask?
+    private var lastCode: String?
+
+    private(set) var authToken: String? {
+        get {
+            dataStorage.token
+        }
+        set {
+            dataStorage.token = newValue
+        }
+    }
 
     private init() { }
 
     func fetchAuthToken(_ code: String, completion: @escaping (Result<String, Error>) -> Void) {
-        guard let request = makeOAuthTokenRequest(code: code) else {
-            print("[OAuth2Service.fetchAuthToken]: NetworkError.invalidRequest — не удалось создать URLRequest")
-            DispatchQueue.main.async {
-                completion(.failure(NetworkError.invalidRequest))
+        assert(Thread.isMainThread)
+
+        if task != nil {
+            if lastCode != code {
+                task?.cancel()
+            } else {
+                print("[OAuth2Service.fetchAuthToken]: AuthServiceError.invalidRequest — повторный запрос с тем же code")
+                completion(.failure(AuthServiceError.invalidRequest))
+                return
             }
+        } else {
+            if lastCode == code {
+                print("[OAuth2Service.fetchAuthToken]: AuthServiceError.invalidRequest — запрос с этим code уже выполнялся")
+                completion(.failure(AuthServiceError.invalidRequest))
+                return
+            }
+        }
+
+        lastCode = code
+
+        guard let request = makeOAuthTokenRequest(code: code) else {
+            print("[OAuth2Service.fetchAuthToken]: AuthServiceError.invalidRequest — не удалось создать URLRequest")
+            completion(.failure(AuthServiceError.invalidRequest))
             return
         }
 
-        let task = urlSession.data(for: request) { result in
+        let task = urlSession.objectTask(for: request) { [weak self] (result: Result<OAuthTokenResponseBody, Error>) in
+            guard let self else { return }
+
+            self.task = nil
+            self.lastCode = nil
+
             switch result {
-            case .success(let data):
-                do {
-                    let response = try JSONDecoder().decode(OAuthTokenResponseBody.self, from: data)
-                    completion(.success(response.accessToken))
-                } catch {
-                    let body = String(data: data, encoding: .utf8) ?? ""
-                    print("[OAuth2Service.fetchAuthToken]: decodingError — \(error), body: \(body)")
-                    completion(.failure(NetworkError.decodingError(error)))
-                }
+            case .success(let body):
+                let authToken = body.accessToken
+                self.authToken = authToken
+                completion(.success(authToken))
             case .failure(let error):
                 switch error {
                 case NetworkError.httpStatusCode(let statusCode):
@@ -49,21 +84,24 @@ final class OAuth2Service {
                     print("[OAuth2Service.fetchAuthToken]: сетевая ошибка URLSession.dataTask — \(requestError)")
                 case NetworkError.urlSessionError:
                     print("[OAuth2Service.fetchAuthToken]: сетевая ошибка URLSession.dataTask — urlSessionError")
+                case NetworkError.decodingError(let decodingError):
+                    print("[OAuth2Service.fetchAuthToken]: decodingError — \(decodingError)")
                 default:
                     print("[OAuth2Service.fetchAuthToken]: \(error)")
                 }
                 completion(.failure(error))
             }
         }
-
+        self.task = task
         task.resume()
     }
 
     private func makeOAuthTokenRequest(code: String) -> URLRequest? {
-        var urlComponents = URLComponents()
-        urlComponents.scheme = "https"
-        urlComponents.host = "unsplash.com"
-        urlComponents.path = "/oauth/token"
+        guard var urlComponents = URLComponents(string: "https://unsplash.com/oauth/token") else {
+            print("[OAuth2Service.makeOAuthTokenRequest]: не удалось создать URLComponents")
+            return nil
+        }
+
         urlComponents.queryItems = [
             URLQueryItem(name: "client_id", value: Constants.accessKey),
             URLQueryItem(name: "client_secret", value: Constants.secretKey),
