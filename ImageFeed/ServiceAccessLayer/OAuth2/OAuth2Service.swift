@@ -65,7 +65,7 @@ final class OAuth2Service {
             return
         }
 
-        let task = object(for: request) { [weak self] result in
+        let task = urlSession.objectTask(for: request) { [weak self] (result: Result<OAuthTokenResponseBody, Error>) in
             guard let self else { return }
 
             self.task = nil
@@ -118,28 +118,5 @@ final class OAuth2Service {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         return request
-    }
-}
-
-extension OAuth2Service {
-    private func object(
-        for request: URLRequest,
-        completion: @escaping (Result<OAuthTokenResponseBody, Error>) -> Void
-    ) -> URLSessionTask {
-        let decoder = JSONDecoder()
-        return urlSession.data(for: request) { (result: Result<Data, Error>) in
-            switch result {
-            case .success(let data):
-                do {
-                    let body = try decoder.decode(OAuthTokenResponseBody.self, from: data)
-                    completion(.success(body))
-                } catch {
-                    print("[OAuth2Service.object]: decodingError — \(error), body: \(String(data: data, encoding: .utf8) ?? "")")
-                    completion(.failure(NetworkError.decodingError(error)))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
     }
 }

@@ -38,26 +38,20 @@ final class ProfileService {
             return
         }
 
-        let task = urlSession.data(for: request) { [weak self] result in
+        let task = urlSession.objectTask(for: request) { [weak self] (result: Result<ProfileResult, Error>) in
             switch result {
-            case .success(let data):
-                do {
-                    let profileResult = try JSONDecoder().decode(ProfileResult.self, from: data)
-                    let name = [profileResult.firstName, profileResult.lastName]
-                        .filter { !$0.isEmpty }
-                        .joined(separator: " ")
-                    let profile = Profile(
-                        username: profileResult.username,
-                        name: name,
-                        loginName: "@\(profileResult.username)",
-                        bio: profileResult.bio
-                    )
-                    self?.profile = profile
-                    completion(.success(profile))
-                } catch {
-                    print("[ProfileService.fetchProfile]: decodingError — \(error)")
-                    completion(.failure(error))
-                }
+            case .success(let profileResult):
+                let name = [profileResult.firstName, profileResult.lastName]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: " ")
+                let profile = Profile(
+                    username: profileResult.username,
+                    name: name,
+                    loginName: "@\(profileResult.username)",
+                    bio: profileResult.bio
+                )
+                self?.profile = profile
+                completion(.success(profile))
             case .failure(let error):
                 print("[ProfileService.fetchProfile]: \(error)")
                 completion(.failure(error))
