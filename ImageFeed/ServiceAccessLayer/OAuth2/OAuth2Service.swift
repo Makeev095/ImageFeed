@@ -1,5 +1,9 @@
 import Foundation
 
+enum AuthServiceError: Error {
+    case invalidRequest
+}
+
 struct OAuthTokenResponseBody: Decodable {
     let accessToken: String
     let tokenType: String
@@ -20,6 +24,9 @@ final class OAuth2Service {
     private let dataStorage = OAuth2TokenStorage()
     private let urlSession = URLSession.shared
 
+    private var task: URLSessionTask?
+    private var lastCode: String?
+
     private(set) var authToken: String? {
         get {
             dataStorage.token
@@ -32,16 +39,37 @@ final class OAuth2Service {
     private init() { }
 
     func fetchAuthToken(_ code: String, completion: @escaping (Result<String, Error>) -> Void) {
-        guard let request = makeOAuthTokenRequest(code: code) else {
-            print("[OAuth2Service.fetchAuthToken]: NetworkError.invalidRequest — не удалось создать URLRequest")
-            DispatchQueue.main.async {
-                completion(.failure(NetworkError.invalidRequest))
+        assert(Thread.isMainThread)
+
+        if task != nil {
+            if lastCode != code {
+                task?.cancel()
+            } else {
+                print("[OAuth2Service.fetchAuthToken]: AuthServiceError.invalidRequest — повторный запрос с тем же code")
+                completion(.failure(AuthServiceError.invalidRequest))
+                return
             }
+        } else {
+            if lastCode == code {
+                print("[OAuth2Service.fetchAuthToken]: AuthServiceError.invalidRequest — запрос с этим code уже выполнялся")
+                completion(.failure(AuthServiceError.invalidRequest))
+                return
+            }
+        }
+
+        lastCode = code
+
+        guard let request = makeOAuthTokenRequest(code: code) else {
+            print("[OAuth2Service.fetchAuthToken]: AuthServiceError.invalidRequest — не удалось создать URLRequest")
+            completion(.failure(AuthServiceError.invalidRequest))
             return
         }
 
         let task = object(for: request) { [weak self] result in
             guard let self else { return }
+
+            self.task = nil
+            self.lastCode = nil
 
             switch result {
             case .success(let body):
@@ -64,6 +92,7 @@ final class OAuth2Service {
                 completion(.failure(error))
             }
         }
+        self.task = task
         task.resume()
     }
 
