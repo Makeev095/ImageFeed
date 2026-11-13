@@ -21,7 +21,7 @@ struct OAuthTokenResponseBody: Decodable {
 final class OAuth2Service {
     static let shared = OAuth2Service()
 
-    private let dataStorage = OAuth2TokenStorage()
+    private let dataStorage = OAuth2TokenStorage.shared
     private let urlSession = URLSession.shared
 
     private var task: URLSessionTask?

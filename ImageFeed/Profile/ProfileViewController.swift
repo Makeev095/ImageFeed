@@ -6,6 +6,8 @@ final class ProfileViewController: UIViewController {
     @IBOutlet private var loginNameLabel: UILabel!
     @IBOutlet private var descriptionLabel: UILabel!
 
+    private var profileImageServiceObserver: NSObjectProtocol?
+
     @IBOutlet private var logoutButton: UIButton!
 
     override func viewDidLoad() {
@@ -13,6 +15,23 @@ final class ProfileViewController: UIViewController {
         if let profile = ProfileService.shared.profile {
             updateProfileDetails(profile: profile)
         }
+        profileImageServiceObserver = NotificationCenter.default
+            .addObserver(
+                forName: ProfileImageService.didChangeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                guard let self else { return }
+                self.updateAvatar()
+            }
+        updateAvatar()
+    }
+
+    private func updateAvatar() {
+        guard
+            let profileImageURL = ProfileImageService.shared.avatarURL,
+            let _ = URL(string: profileImageURL)
+        else { return }
     }
 
     private func updateProfileDetails(profile: Profile) {
