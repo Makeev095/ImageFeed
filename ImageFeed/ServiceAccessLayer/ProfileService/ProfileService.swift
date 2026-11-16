@@ -29,6 +29,12 @@ final class ProfileService {
     private let urlSession = URLSession.shared
     private(set) var profile: Profile?
 
+    func reset() {
+        task?.cancel()
+        task = nil
+        profile = nil
+    }
+
     func fetchProfile(_ token: String, completion: @escaping (Result<Profile, Error>) -> Void) {
         task?.cancel()
 

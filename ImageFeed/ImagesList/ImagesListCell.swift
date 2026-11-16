@@ -1,7 +1,14 @@
 import UIKit
+import Kingfisher
+
+protocol ImagesListCellDelegate: AnyObject {
+    func imageListCellDidTapLike(_ cell: ImagesListCell)
+}
 
 final class ImagesListCell: UITableViewCell {
     static let reuseIdentifier = "ImagesListCell"
+
+    weak var delegate: ImagesListCellDelegate?
 
     let cellImage: UIImageView = {
         let imageView = UIImageView()
@@ -14,11 +21,7 @@ final class ImagesListCell: UITableViewCell {
         return imageView
     }()
 
-    let likeButton: UIButton = {
-        let button = UIButton(type: .custom)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        return button
-    }()
+    @IBOutlet var likeButton: UIButton!
 
     let dateLabel: UILabel = {
         let label = UILabel()
@@ -27,6 +30,8 @@ final class ImagesListCell: UITableViewCell {
         label.textColor = .white
         return label
     }()
+
+    private(set) var imageURL: URL?
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -37,10 +42,22 @@ final class ImagesListCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        cellImage.kf.cancelDownloadTask()
+        imageURL = nil
+        delegate = nil
+    }
+
     private func setupUI() {
         backgroundColor = .clear
         contentView.backgroundColor = .clear
         selectionStyle = .none
+
+        let button = UIButton(type: .custom)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(didTapLikeButton), for: .touchUpInside)
+        likeButton = button
 
         contentView.addSubview(cellImage)
         contentView.addSubview(likeButton)
@@ -61,5 +78,18 @@ final class ImagesListCell: UITableViewCell {
             dateLabel.bottomAnchor.constraint(equalTo: cellImage.bottomAnchor, constant: -8),
             dateLabel.trailingAnchor.constraint(lessThanOrEqualTo: cellImage.trailingAnchor, constant: -8)
         ])
+    }
+
+    func setImageURL(_ url: URL?) {
+        imageURL = url
+    }
+
+    func setIsLiked(_ isLiked: Bool) {
+        let likeImage = isLiked ? UIImage(named: "like_button_on") : UIImage(named: "like_button_off")
+        likeButton.setImage(likeImage, for: .normal)
+    }
+
+    @IBAction private func didTapLikeButton() {
+        delegate?.imageListCellDidTapLike(self)
     }
 }
