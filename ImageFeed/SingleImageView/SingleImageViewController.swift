@@ -1,15 +1,17 @@
 import UIKit
+import Kingfisher
 
 final class SingleImageViewController: UIViewController {
     var image: UIImage? {
         didSet {
             guard isViewLoaded, let image else { return }
-
             imageView.image = image
             imageView.frame.size = image.size
             rescaleAndCenterImageInScrollView(image: image)
         }
     }
+
+    var imageURL: URL?
 
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -47,10 +49,13 @@ final class SingleImageViewController: UIViewController {
         scrollView.minimumZoomScale = 0.1
         scrollView.maximumZoomScale = 1.25
 
-        guard let image else { return }
-        imageView.image = image
-        imageView.frame.size = image.size
-        rescaleAndCenterImageInScrollView(image: image)
+        if let image {
+            imageView.image = image
+            imageView.frame.size = image.size
+            rescaleAndCenterImageInScrollView(image: image)
+        }
+
+        loadImage()
     }
 
     private func setupUI() {
@@ -78,6 +83,23 @@ final class SingleImageViewController: UIViewController {
             shareButton.widthAnchor.constraint(equalToConstant: 50),
             shareButton.heightAnchor.constraint(equalToConstant: 50)
         ])
+    }
+
+    private func loadImage() {
+        guard let imageURL else { return }
+
+        UIBlockingProgressHUD.show()
+        imageView.kf.setImage(with: imageURL) { [weak self] result in
+            UIBlockingProgressHUD.dismiss()
+            guard let self else { return }
+
+            switch result {
+            case .success(let value):
+                self.image = value.image
+            case .failure(let error):
+                print("[SingleImageViewController.loadImage]: \(error)")
+            }
+        }
     }
 
     @objc private func didTapBackButton() {
