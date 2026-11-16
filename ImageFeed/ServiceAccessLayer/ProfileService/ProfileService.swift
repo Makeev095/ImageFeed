@@ -33,8 +33,8 @@ final class ProfileService {
         task?.cancel()
 
         guard let request = makeProfileRequest(token: token) else {
-            print("[ProfileService.fetchProfile]: не удалось создать URLRequest")
-            completion(.failure(URLError(.badURL)))
+            print("[ProfileService.fetchProfile]: NetworkError.invalidRequest — не удалось создать URLRequest")
+            completion(.failure(NetworkError.invalidRequest))
             return
         }
 
@@ -53,7 +53,7 @@ final class ProfileService {
                 self?.profile = profile
                 completion(.success(profile))
             case .failure(let error):
-                print("[ProfileService.fetchProfile]: \(error)")
+                print("[ProfileService.fetchProfile]: \(error) token=\(token)")
                 completion(.failure(error))
             }
             self?.task = nil

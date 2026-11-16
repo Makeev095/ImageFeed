@@ -1,18 +1,15 @@
-//
-//  ImagesListViewController.swift
-//  ImageFeed
-//
-//  Created by Дмитрий Макеев on 24.09.2026.
-//
-
 import UIKit
 
 final class ImagesListViewController: UIViewController {
-    private let showSingleImageSegueIdentifier = "ShowSingleImage"
+    private let tableView: UITableView = {
+        let tableView = UITableView()
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        tableView.backgroundColor = .clear
+        tableView.separatorStyle = .none
+        return tableView
+    }()
 
-    @IBOutlet private var tableView: UITableView!
-
-    private let photosName: [String] = Array(0..<20).map{ "\($0)" }
+    private let photosName: [String] = Array(0..<20).map { "\($0)" }
 
     private lazy var dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -23,26 +20,26 @@ final class ImagesListViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupUI()
 
+        tableView.dataSource = self
+        tableView.delegate = self
+        tableView.register(ImagesListCell.self, forCellReuseIdentifier: ImagesListCell.reuseIdentifier)
         tableView.rowHeight = 200
         tableView.contentInset = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
     }
 
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        if segue.identifier == showSingleImageSegueIdentifier {
-            guard
-                let viewController = segue.destination as? SingleImageViewController,
-                let indexPath = sender as? IndexPath
-            else {
-                assertionFailure("Invalid segue destination")
-                return
-            }
+    private func setupUI() {
+        view.backgroundColor = UIColor(named: "YP Black")
+            ?? UIColor(red: 26 / 255, green: 27 / 255, blue: 34 / 255, alpha: 1)
+        view.addSubview(tableView)
 
-            let image = UIImage(named: photosName[indexPath.row])
-            viewController.image = image
-        } else {
-            super.prepare(for: segue, sender: sender)
-        }
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
     }
 }
 
@@ -81,7 +78,10 @@ extension ImagesListViewController {
 
 extension ImagesListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        performSegue(withIdentifier: showSingleImageSegueIdentifier, sender: indexPath)
+        let viewController = SingleImageViewController()
+        viewController.image = UIImage(named: photosName[indexPath.row])
+        viewController.modalPresentationStyle = .fullScreen
+        present(viewController, animated: true)
     }
 
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {

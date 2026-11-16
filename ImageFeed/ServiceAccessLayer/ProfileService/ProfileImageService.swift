@@ -28,14 +28,14 @@ final class ProfileImageService {
         task?.cancel()
 
         guard let token = OAuth2TokenStorage.shared.token else {
-            print("[ProfileImageService.fetchProfileImageURL]: нет токена авторизации")
-            completion(.failure(URLError(.userAuthenticationRequired)))
+            print("[ProfileImageService.fetchProfileImageURL]: NetworkError.invalidRequest — нет токена username=\(username)")
+            completion(.failure(NetworkError.invalidRequest))
             return
         }
 
         guard let request = makeProfileImageRequest(username: username, token: token) else {
-            print("[ProfileImageService.fetchProfileImageURL]: не удалось создать URLRequest")
-            completion(.failure(URLError(.badURL)))
+            print("[ProfileImageService.fetchProfileImageURL]: NetworkError.invalidRequest — не удалось создать URLRequest username=\(username)")
+            completion(.failure(NetworkError.invalidRequest))
             return
         }
 
@@ -52,7 +52,7 @@ final class ProfileImageService {
                     userInfo: ["URL": avatarURL]
                 )
             case .failure(let error):
-                print("[ProfileImageService.fetchProfileImageURL]: \(error)")
+                print("[ProfileImageService.fetchProfileImageURL]: \(error) username=\(username)")
                 completion(.failure(error))
             }
             self?.task = nil

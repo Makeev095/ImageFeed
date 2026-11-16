@@ -38,6 +38,10 @@ final class OAuth2Service {
 
     private init() { }
 
+    func fetchOAuthToken(_ code: String, completion: @escaping (Result<String, Error>) -> Void) {
+        fetchAuthToken(code, completion: completion)
+    }
+
     func fetchAuthToken(_ code: String, completion: @escaping (Result<String, Error>) -> Void) {
         assert(Thread.isMainThread)
 
@@ -45,13 +49,13 @@ final class OAuth2Service {
             if lastCode != code {
                 task?.cancel()
             } else {
-                print("[OAuth2Service.fetchAuthToken]: AuthServiceError.invalidRequest — повторный запрос с тем же code")
+                print("[OAuth2Service.fetchOAuthToken]: AuthServiceError.invalidRequest — повторный запрос с тем же code")
                 completion(.failure(AuthServiceError.invalidRequest))
                 return
             }
         } else {
             if lastCode == code {
-                print("[OAuth2Service.fetchAuthToken]: AuthServiceError.invalidRequest — запрос с этим code уже выполнялся")
+                print("[OAuth2Service.fetchOAuthToken]: AuthServiceError.invalidRequest — запрос с этим code уже выполнялся")
                 completion(.failure(AuthServiceError.invalidRequest))
                 return
             }
@@ -60,7 +64,7 @@ final class OAuth2Service {
         lastCode = code
 
         guard let request = makeOAuthTokenRequest(code: code) else {
-            print("[OAuth2Service.fetchAuthToken]: AuthServiceError.invalidRequest — не удалось создать URLRequest")
+            print("[OAuth2Service.fetchOAuthToken]: AuthServiceError.invalidRequest — не удалось создать URLRequest")
             completion(.failure(AuthServiceError.invalidRequest))
             return
         }
@@ -79,15 +83,15 @@ final class OAuth2Service {
             case .failure(let error):
                 switch error {
                 case NetworkError.httpStatusCode(let statusCode):
-                    print("[OAuth2Service.fetchAuthToken]: ошибка Unsplash, statusCode=\(statusCode)")
+                    print("[OAuth2Service.fetchOAuthToken]: NetworkError - код ошибки \(statusCode)")
                 case NetworkError.urlRequestError(let requestError):
-                    print("[OAuth2Service.fetchAuthToken]: сетевая ошибка URLSession.dataTask — \(requestError)")
+                    print("[OAuth2Service.fetchOAuthToken]: NetworkError.urlRequestError - \(requestError)")
                 case NetworkError.urlSessionError:
-                    print("[OAuth2Service.fetchAuthToken]: сетевая ошибка URLSession.dataTask — urlSessionError")
+                    print("[OAuth2Service.fetchOAuthToken]: NetworkError.urlSessionError")
                 case NetworkError.decodingError(let decodingError):
-                    print("[OAuth2Service.fetchAuthToken]: decodingError — \(decodingError)")
+                    print("[OAuth2Service.fetchOAuthToken]: NetworkError.decodingError - \(decodingError)")
                 default:
-                    print("[OAuth2Service.fetchAuthToken]: \(error)")
+                    print("[OAuth2Service.fetchOAuthToken]: \(error)")
                 }
                 completion(.failure(error))
             }
